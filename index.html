@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>스타듀 똥밸리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game" aria-label="게임 화면"></canvas>
+
+  <div id="hud" hidden>
+    <div class="clock wood">
+      <div class="clock-date" id="hudDate">봄 1일 · 월</div>
+      <div class="clock-time"><img id="hudWeather" alt=""><span id="hudTime">오전 6:00</span></div>
+      <div class="clock-money"><img id="hudCoin" alt=""><span id="hudMoney">500</span> G</div>
+    </div>
+    <div class="hud-buttons">
+      <button class="wood-btn" id="btnMenu" type="button" title="가방 (E)">가방</button>
+      <button class="wood-btn" id="btnSound" type="button" title="소리 (M)">소리 켬</button>
+    </div>
+  </div>
+
+  <div id="energy" hidden>
+    <div class="energy-label">E</div>
+    <div class="energy-track"><div class="energy-fill" id="energyFill"></div></div>
+  </div>
+
+  <div id="toasts" aria-live="polite"></div>
+  <div id="hotbar" hidden></div>
+
+  <div id="touch" hidden>
+    <div class="dpad">
+      <button type="button" data-dir="up" aria-label="위">▲</button>
+      <button type="button" data-dir="left" aria-label="왼쪽">◀</button>
+      <button type="button" data-dir="right" aria-label="오른쪽">▶</button>
+      <button type="button" data-dir="down" aria-label="아래">▼</button>
+    </div>
+    <div class="actions">
+      <button type="button" id="tUse" class="act act-use">도구</button>
+      <button type="button" id="tAct" class="act act-do">행동</button>
+    </div>
+  </div>
+
+  <div id="modal" hidden>
+    <div class="panel paper" id="panel" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <div id="title">
+    <div class="title-card">
+      <canvas id="titlePoop" width="64" height="64" aria-hidden="true"></canvas>
+      <h1>스타듀 <span>똥</span>밸리</h1>
+      <p class="title-sub">무엇을 심든 똥이 자라는 마을</p>
+      <div class="title-buttons">
+        <button type="button" class="wood-btn big" id="btnNew">새 게임</button>
+        <button type="button" class="wood-btn big" id="btnContinue" hidden>이어하기</button>
+      </div>
+      <p class="title-hint">WASD 이동 · C/스페이스 도구 · X/F 행동 · E 가방</p>
+    </div>
+  </div>
+
+  <div id="fade"></div>
+</div>
+<script src="js/data.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/tiles.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/world.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
