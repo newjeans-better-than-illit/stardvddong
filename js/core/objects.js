@@ -77,7 +77,7 @@
 
   // 작은 도우미: 스프라이트를 (밑동 x, 바닥 y) 기준으로 회전해 그린다
   function drawRot(g, img, bx, by, ox, oy, ang) {
-    if (!ang) { g.drawImage(img, Math.round(bx - ox), Math.round(by - oy)); return; }
+    if (!ang || Math.abs(ang) < 0.012) { g.drawImage(img, Math.round(bx - ox), Math.round(by - oy)); return; }
     g.save();
     g.translate(Math.round(bx), Math.round(by));
     g.rotate(ang);
@@ -205,6 +205,18 @@
   // ═════════════ 풀 (섬유 / 건초) ═════════════
   // { t:'grass', n: 1~4 포기, v }
   const TUFT_POS = [[4, 6], [12, 7], [5, 13], [12, 14]];
+  // 가만히 있는 풀 한 칸(최대 4포기)을 한 장으로 미리 합쳐 둔다 (그리기 횟수 ↓)
+  function grassPatch(season, n, v) {
+    return X.cached(`grassPatch:${season}:${n}:${v}`, () => {
+      const c = X.canvas(24, 24);
+      const g = X.ctx(c);
+      for (let i = 0; i < n; i++) {
+        const [ox, oy] = TUFT_POS[i];
+        g.drawImage(A.grassTuft(season, (v + i) % 6), 4 + ox - 5, 6 + oy + 1 - 13);
+      }
+      return c;
+    });
+  }
   types.define('grass', {
     layer: 'feature',
     passable: true,
@@ -212,10 +224,16 @@
       const { px, py } = tilePx(o);
       const n = o.n || 4;
       const s = V.season;
+      const shaking = o._shT != null && SD.Time.anim - o._shT < 2;
+      if (!shaking && !V.windy) {
+        // 한 장으로 (밑동 기준 정렬은 칸 아래쪽)
+        V.add(py + 7.1, (g) => g.drawImage(grassPatch(s, n, (o.v || 0) % 6), px - 4, py - 6));
+        return;
+      }
       for (let i = 0; i < n; i++) {
         const [ox, oy] = TUFT_POS[i];
         const v = (o.v || 0) + i;
-        const ang = Obj.shakeAngle(o, 18 + i * 2, 3.5) + Math.sin(V.t * 1.6 + o.x * 0.7 + i) * 0.04 * (V.windy ? 2.5 : 1);
+        const ang = SD.Obj.shakeAngle(o, 18 + i * 2, 3.5) + (V.windy ? Math.sin(V.t * 1.6 + o.x * 0.7 + i) * 0.1 : 0);
         V.add(py + oy + 0.1, (g) => drawRot(g, A.grassTuft(s, v % 6), px + ox, py + oy + 1, 5, 13, ang));
       }
     },
@@ -290,7 +308,7 @@
           alpha = o._fade;
         }
         g.globalAlpha = alpha;
-        drawRot(g, top, bx, py - 2, 24, 78, ang + Math.sin(V.t * 1.3 + o.x) * (V.windy ? 0.012 : 0.004));
+        drawRot(g, top, bx, py - 2, 24, 78, ang + (V.windy ? Math.sin(V.t * 1.3 + o.x) * 0.02 : 0));
         g.globalAlpha = 1;
       });
     },

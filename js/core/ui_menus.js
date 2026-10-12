@@ -523,7 +523,9 @@
             if (UI.inRect(UI.mouse.x, UI.mouse.y, [sx, sy, grid.slot, grid.slot])) UI.hoverStack = st;
           }
         }
-        UI.text(g, `${U.fmt(SD.G.money)}G`, lx + 8 * u, gy0 + 5 * u);
+        UI.frame(g, r[0] + 6 * u, r[1] + r[3] - 22 * u, lw - 12 * u, 16 * u, 'slot');
+        UI.img(g, SD.HUD.icon('coin'), r[0] + 9 * u, r[1] + r[3] - 18.5 * u, 1.1);
+        UI.text(g, `${U.fmt(SD.G.money)}G`, r[0] + lw - 9 * u, r[1] + r[3] - 19 * u, { align: 'right' });
       },
     };
     SD.Sound.play('menuOpen');

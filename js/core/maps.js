@@ -14,7 +14,7 @@
     const h = U.hash2(x, y, 77);
     if ((x + y * 2) % 3 !== 0 && h % 5 !== 0) return;
     const kinds = ['oak', 'oak', 'maple', 'pine', 'pine'];
-    loc.decor.push({ t: 'decorTree', x, y, kind: kinds[h % kinds.length], v: h % 2, ox: (h % 7) - 3, oy: ((h >> 3) % 5) - 2 });
+    loc.decor.push({ t: 'decorTree', x, y, kind: kinds[h % kinds.length], v: h % 2, ox: (h % 7) - 3, oy: ((h >>> 3) % 5) - 2 });
   }
 
   const FARM_MAP = [

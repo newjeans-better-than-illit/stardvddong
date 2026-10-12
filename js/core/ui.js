@@ -218,8 +218,8 @@
     if (UI.title) { UI.title.draw(g); UI.drawCursor(g); return; }
     if (SD.HUD && !UI.hideHud) SD.HUD.draw(g);
     SD.Mods.emit('draw:ui', g, UI);
-    for (const s of UI.screens) if (s.draw) SD.Mods.safe('ui.draw', s.draw.bind(s), g);
     UI.drawMessages(g);
+    for (const s of UI.screens) if (s.draw) SD.Mods.safe('ui.draw', s.draw.bind(s), g);
     if (UI.hoverStack) UI.tooltip(g, UI.hoverStack, UI.mouse.x, UI.mouse.y);
     UI.drawCursor(g);
   };
