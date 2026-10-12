@@ -29,6 +29,7 @@
   // ───────────── 도구 아이콘 ─────────────
   // 손잡이: 왼쪽 아래 → 오른쪽 위 대각선. 잡는 점(GRIP) = (3, 12)
   A.TOOL_GRIP = { x: 3, y: 12 };
+  A.CAN_GRIP = { x: 6, y: 4 };   // 물뿌리개 손잡이
   function handle(g, x0, y0, x1, y1) {
     // 2픽셀 두께 사선 손잡이 (아래쪽은 어둡게, 위쪽은 밝게)
     const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
@@ -40,13 +41,24 @@
       X.px(g, x, y + 1, WOOD[2]);
     }
   }
-  A.toolIcon = function (kind, lvl) {
+  // held=true: 손에 든 모습(24×24, 손잡이가 길다). 잡는 점 = A.TOOL_GRIP_HELD
+  A.TOOL_GRIP_HELD = { x: 3, y: 21 };
+  A.toolIcon = function (kind, lvl, held) {
     const head = SD.Tools.headColor(lvl);
     const R = X.ramp(head);
     const pal = { 1: R[0], 2: R[1], 3: R[2], 4: R[3], h: WOOD[1], H: WOOD[0], d: WOOD[2], w: '#ffffff' };
-    const [c, g] = A.blank();
+    const size = held ? 24 : 16;
+    const c = X.canvas(size, size);
+    const g0 = X.ctx(c);
+    // 머리 부분은 (ox, oy) 만큼 밀어서 그린다 (손잡이가 길어진 만큼)
+    const ox = held ? 5 : 0, oy = held ? 9 : 0;
+    const g = {
+      set fillStyle(v) { g0.fillStyle = v; },
+      fillRect(x, y, w, h) { g0.fillRect(x + ox, y + oy, w, h); },
+    };
+    const handle2 = (x0, y0, x1, y1) => (held ? handle(g0, x0, y0 + 9, x1 + 5, y1 + 9) : handle(g0, x0, y0, x1, y1));
     if (kind === 'hoe') {
-      handle(g, 2, 12, 9, 5);
+      handle2(2, 12, 9, 5);
       X.paintRows(g, [
         '................',
         '................',
@@ -58,7 +70,7 @@
         '.............4..',
       ], pal, 0, 0);
     } else if (kind === 'pick') {
-      handle(g, 2, 12, 9, 5);
+      handle2(2, 12, 9, 5);
       X.paintRows(g, [
         '................',
         '......1111......',
@@ -70,7 +82,7 @@
         '..............3.',
       ], pal, 0, 0);
     } else if (kind === 'axe') {
-      handle(g, 2, 12, 10, 4);
+      handle2(2, 12, 10, 4);
       X.paintRows(g, [
         '................',
         '........11......',
@@ -84,7 +96,7 @@
       ], pal, 0, 0);
     } else if (kind === 'scythe') {
       // 손잡이는 길고 거의 세로, 날은 위에서 왼쪽으로 휘어진다
-      handle(g, 5, 14, 10, 2);
+      if (held) handle(g0, 3, 21, 15, 11); else handle(g0, 5, 14, 10, 2);
       X.paintRows(g, [
         '................',
         '.....111111.....',
@@ -94,7 +106,7 @@
         '.23.............',
         '.3..............',
       ], pal, 0, 0);
-      X.px(g, 6, 9, WOOD[0]); X.px(g, 7, 9, WOOD[0]);
+      if (!held) { X.px(g0, 6, 9, WOOD[0]); X.px(g0, 7, 9, WOOD[0]); }
     } else if (kind === 'can') {
       const body = lvl === 0 ? X.ramp('#4e9db2') : R;
       const p2 = { 1: body[0], 2: body[1], 3: body[2], 4: body[3], m: '#ffffff', s: X.light(body[1], 0.5) };

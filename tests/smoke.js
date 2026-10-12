@@ -123,6 +123,117 @@ function check(cond, msg) {
   await ev(() => { SD.Game.toTitle(); SD.Game.continueGame(); });
   check(await ev((s) => SD.G.day === s.day && SD.G.money === s.money, snap), '이어하기로 같은 날짜/돈 복원');
 
+  console.log('9b. 기능 검사');
+  // 나무 베기: 10번 → 쓰러짐(임시 스프라이트) → 그루터기 → 나무 떨어짐 → 자석으로 줍기
+  const tree = await ev(async () => {
+    DBG.warp('Farm');
+    const L = DBG.loc();
+    DBG.clearArea(20, 18, 28, 24);
+    L.setFeat(24, 20, { t: 'tree', kind: 'oak', stage: 4 });
+    DBG.teleport(23, 20, 'right');
+    const axe = SD.Inv.findTool('axe');
+    const ctx = SD.Player.toolCtx(axe, 24, 20);
+    for (let i = 0; i < 10; i++) SD.Player.applyToolAt(ctx, 24, 20);
+    const f = L.featAt(24, 20);
+    const falling = L.temp.some((e) => e.kind === 'fallingTree');
+    const wood0 = SD.Inv.count('wood');
+    DBG.freeze(true);
+    DBG.step(1300);
+    const drops = L.items.length;
+    DBG.step(700);
+    // 쓰러진 쪽으로 걸어가며 줍는다
+    for (let i = 0; i < 6; i++) { DBG.teleport(25 + i, 20, 'right'); DBG.step(500); }
+    DBG.freeze(false);
+    return { stump: f && f.stump, falling, drops, wood: SD.Inv.count('wood') - wood0, left: L.items.length };
+  });
+  check(tree.stump && tree.falling, '도끼 10번에 나무가 쓰러지고 그루터기가 남는다');
+  check(tree.drops > 0, `쓰러진 나무에서 아이템이 튀어나온다 (${tree.drops}덩이)`);
+  check(tree.wood >= 10 && tree.left === 0, `바닥 아이템이 자석처럼 빨려와 가방에 (나무 +${tree.wood})`);
+  // 차지: 구리 괭이를 꾹 누르면 3칸
+  await ev(() => { DBG.clearArea(20, 18, 28, 26); DBG.giveTool('hoe', 1); DBG.selectItem('hoe'); DBG.teleport(24, 20, 'down'); SD.G.player.energy = 270; });
+  await page.keyboard.down('KeyC');
+  await page.waitForTimeout(900);
+  await shot('09_charge');
+  await page.keyboard.up('KeyC');
+  await page.waitForTimeout(500);
+  const tilled = await ev(() => [21, 22, 23].filter((y) => SD.Farming.isDirt(DBG.loc(), 24, y)).length);
+  check(tilled === 3, `구리 괭이 차지 → 3칸 갈기 (${tilled}칸)`);
+  // 지지대 작물은 지나갈 수 없다
+  const trellis = await ev(() => { const L = DBG.loc(); DBG.setCrop(26, 22, 'green_bean', 2); return L.isPassable(26, 22); });
+  check(trellis === false, '그린빈똥 지지대는 지나갈 수 없다');
+  // 큰 그루터기: 기본 도끼로는 안 됨, 구리 도끼로는 됨
+  const clump = await ev(() => {
+    const L = DBG.loc();
+    DBG.clearArea(20, 24, 23, 27);
+    const o = L.addLarge({ t: 'clump', kind: 'stump', x: 21, y: 25, w: 2, h: 2 });
+    const axe = SD.Inv.findTool('axe');
+    axe.lvl = 0;
+    for (let i = 0; i < 12; i++) SD.Player.applyToolAt(SD.Player.toolCtx(axe, 21, 25), 21, 25);
+    const still = L.large.includes(o);
+    axe.lvl = 1;
+    for (let i = 0; i < 12; i++) SD.Player.applyToolAt(SD.Player.toolCtx(axe, 21, 25), 21, 25);
+    axe.lvl = 0;
+    return { still, gone: !L.large.includes(o) };
+  });
+  check(clump.still && clump.gone, '큰 그루터기는 구리 도끼부터 쪼갤 수 있다');
+  // 풀 베기
+  const grass = await ev(() => { const L = DBG.loc(); L.setFeat(24, 26, { t: 'grass', n: 4 }); const sc = SD.Inv.findTool('scythe'); SD.Player.applyToolAt(SD.Player.toolCtx(sc, 24, 26), 24, 26); return !L.featAt(24, 26); });
+  check(grass, '낫으로 풀을 벤다');
+  // 비 → 자동 물주기, 계절이 바뀌면 시듦
+  const season = await ev(async () => {
+    const L = DBG.loc();
+    DBG.clearArea(30, 30, 32, 30);
+    DBG.till(30, 30, 32, 30);
+    DBG.plant('parsnip_seed', 30, 30, 32, 30);
+    SD.G.day = 28;
+    await DBG.skipDay();
+    const f = SD.World.get('Farm').featAt(30, 30);
+    const dead = !!(f && f.crop && f.crop.dead);
+    SD.G.tomorrow = 'rain';
+    await DBG.skipDay();
+    const f2 = SD.World.get('Farm').featAt(31, 30);
+    return { season: SD.G.season, dead, wet: !!(f2 && f2.wet), weather: SD.G.weather };
+  });
+  check(season.season === 1 && season.dead, '계절이 바뀌면 제철 아닌 똥이 시든다');
+  check(season.wet, '비 오는 아침에는 밭이 저절로 젖는다');
+  await ev(() => { SD.G.season = 0; SD.G.day = 6; SD.G.weather = 'sun'; });
+  // 가방이 꽉 차면 수확 불가
+  const full = await ev(() => {
+    const saved = SD.G.inv.slice();
+    for (let i = 0; i < 36; i++) if (!SD.G.inv[i]) SD.G.inv[i] = { id: 'stone', n: 999, q: 0 };
+    DBG.warp('Farm');
+    const f = DBG.setCrop(34, 30, 'parsnip', 4);
+    SD.Farming.harvest(f, DBG.loc(), 'hand');
+    const kept = !!f.crop;
+    SD.G.inv = saved;
+    return kept && SD.UI.messages.some((m) => m.text.includes('꽉'));
+  });
+  check(full, '가방이 꽉 차면 수확하지 않고 알린다');
+  // 섞인 씨앗 → 이 계절 작물
+  const mixed = await ev(() => { DBG.clearArea(36, 30, 36, 30); DBG.till(36, 30); SD.Farming.plant(DBG.loc(), 36, 30, 'mixed_seeds'); const c = DBG.loc().featAt(36, 30).crop; return c && SD.Crops.get(c.id).seasons.includes(SD.G.season); });
+  check(mixed, '섞인 씨앗은 이 계절 똥이 된다');
+  // 채집 똥 생성 API
+  const forage = await ev(() => SD.Farming.spawnForage(DBG.loc(), 3) > 0 && [...DBG.loc().objects.values()].some((o) => o.t === 'forage'));
+  check(forage, '채집 똥이 생긴다');
+  // 레벨업: 경험치 기준
+  const lv = await ev(() => { const before = SD.Skills.level('mining'); SD.Skills.addXP('mining', 100); return [before, SD.Skills.level('mining'), SD.G.levelUps.length]; });
+  check(lv[1] === lv[0] + 1 && lv[2] > 0, '경험치 100 → 레벨 1, 밤에 보여줄 레벨업 대기열');
+  // 새벽 2시 기절 → 다음 날 침대, 벌금
+  const pass = await ev(async () => {
+    DBG.warp('Farm'); DBG.teleport(40, 20); SD.G.money = 5000;
+    const day = SD.G.day;
+    SD.G.time = 1550; SD.Time.acc = 6.95;
+    await new Promise((r) => { const off = SD.Mods.on('newDay', () => { off(); r(); }); const pump = setInterval(() => { const t = SD.UI.top(); if (t && t.id === 'summary') { t._t = 9; t.next(); } if (!SD.Day.busy && SD.G.day !== day) clearInterval(pump); }, 60); });
+    return { day: SD.G.day - day, money: SD.G.money, loc: SD.G.player.loc, energy: SD.G.player.energy };
+  });
+  check(pass.day === 1 && pass.loc === 'FarmHouse', '새벽 2시에 쓰러지면 침대에서 아침을 맞는다');
+  check(pass.money === 4500, `쓰러지면 소지금의 10% 를 잃는다 (${pass.money})`);
+  check(pass.energy < 270, '쓰러진 다음 날은 기력이 덜 찬다');
+  // 모듈 훅 오류는 게임을 멈추지 않는다
+  const robust = await ev(() => { const off = SD.Mods.on('update', () => { throw new Error('test hook error'); }); SD.Game.update(1 / 60); off(); return SD.Game.running; });
+  check(robust, '훅 오류가 나도 게임 루프는 계속 돈다');
+  errors.splice(0, errors.length, ...errors.filter((e) => !e.includes('test hook error')));
+
   console.log('10. 스크린샷: 사계절 농장');
   await ev(() => { DBG.freeze(true); DBG.warp('Farm'); DBG.teleport(46, 16, 'down'); DBG.time(1100); DBG.weather('sun'); });
   for (let s = 0; s < 4; s++) {

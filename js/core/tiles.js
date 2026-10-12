@@ -239,19 +239,35 @@
       const R = T.season === 3 ? ROCK_W : ROCK;
       const isC = (dx, dy) => T.at(dx, dy) === 'cliff';
       const top = !isC(0, -1), bot = !isC(0, 1), left = !isC(-1, 0), right = !isC(1, 0);
-      // 바위 기둥 질감: 세로 줄이 아래 칸까지 이어지도록 x 로만 결정
-      for (let x = 0; x < 16; x++) {
-        const wx = T.x * 16 + x;
-        const h = U.hash2(wx, 0, 21);
-        const col = (h % 7 === 0) ? R[3] : (h % 5 === 0) ? R[0] : (h % 3 === 0) ? R[2] : R[1];
-        g.fillStyle = col;
-        g.fillRect(px + x, py, 1, 16);
-        // 가로 금
-        const ch = U.hash2(wx, T.y, 23);
-        if (ch % 9 === 0) { g.fillStyle = R[3]; g.fillRect(px + x, py + (ch >> 4) % 14 + 1, 2, 1); }
+      // 울퉁불퉁한 바위 덩어리 (월드 좌표 보로노이 → 칸 경계가 이어진다)
+      const wx0 = T.x * 16, wy0 = T.y * 16;
+      const pt = (cx, cy) => { const h = U.hash2(cx, cy, 31); return [cx * 7 + (h % 7), cy * 6 + ((h >> 4) % 6)]; };
+      // 절벽 위에서 몇 칸째인지 (아래로 갈수록 어둡게)
+      let depth = 0;
+      while (depth < 4 && isC(0, -depth - 1)) depth++;
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const wx = wx0 + x, wy = wy0 + y;
+          const cx = Math.floor(wx / 7), cy = Math.floor(wy / 6);
+          let d1 = 1e9, d2 = 1e9, best = null;
+          for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+            const [qx, qy] = pt(cx + ox, cy + oy);
+            const d = (wx - qx) * (wx - qx) * 0.8 + (wy - qy) * (wy - qy) * 1.3;
+            if (d < d1) { d2 = d1; d1 = d; best = [qx, qy]; } else if (d < d2) d2 = d;
+          }
+          let tone;
+          const edge = Math.sqrt(d2) - Math.sqrt(d1);
+          if (edge < 1.1) tone = 4;
+          else {
+            const dx = wx - best[0], dy = wy - best[1];
+            tone = dy < -1.5 && dx < 1.5 ? 0 : dy > 1.5 || dx > 2.5 ? 2 : 1;
+            if (edge < 2.1 && dy > 0) tone = 3;
+          }
+          if (depth + y / 16 > 1.6 && tone < 3 && U.hash2(wx, wy, 5) % 3 === 0) tone++;
+          g.fillStyle = R[tone];
+          g.fillRect(px + x, py + y, 1, 1);
+        }
       }
-      // 아래쪽일수록 어둡게
-      g.fillStyle = 'rgba(40,20,10,0.10)'; g.fillRect(px, py + 8, 16, 8);
       if (bot) {
         g.fillStyle = R[3]; g.fillRect(px, py + 13, 16, 3);
         g.fillStyle = R[4]; g.fillRect(px, py + 15, 16, 1);

@@ -161,13 +161,12 @@
       kind: 'trellis', color: '#5cb04a', seed: '#a8c870', seedShape: 'big',
       mature(S) {
         A.trellis(S, 26);
-        A.vine(S, 28, 6, L2, 3);
-        const bean = (x, y, h) => P(S, x, y, [[3, h], [2, 2]], '#6cc04e', { tip: false, overlap: 0 });
-        bean(4, 21, 7); bean(12, 17, 7);
-        const b = bean(5, 12, 6);
-        S.pixels([[10, 9], [11, 10], [3, 17]], '#ffffff');
-        F(S, 4.5, 16, { small: true });
-        void b;
+        A.vine(S, 28, 6, LEAF, 3, 4);
+        const bean = (x, y, h) => P(S, x, y, [[4, h], [3, 2]], '#b4e05a', { tip: false, overlap: 0, pw: 2.2, tex: A.tex.stripes('#88b83a', 12) });
+        bean(4, 23, 9); bean(12, 19, 9);
+        const b = bean(5, 13, 8);
+        S.pixels([[10, 8], [11, 9], [3, 18], [13, 13]], '#ffffff');
+        F(S, 5, b[0].top + 3, { small: true });
       },
       icon(S) {
         const b = P(S, 6, 14, [[4, 10], [3, 2]], '#6cc04e', { tip: false, overlap: 0, pw: 2.2 });
@@ -262,9 +261,10 @@
         S.leaf(9, 26, 8, -Math.PI * 0.34, 2, L2);
         S.ellipse(5, 10, 2.4, 4.5, ramp(X.light(c, 0.15)), { group: 'petal' });
         S.ellipse(11, 10, 2.4, 4.5, ramp(X.light(c, 0.15)), { group: 'petal' });
-        const t = P(S, 8, 15, [[8, 5], [6, 3], [3, 2]], c, {});
-        S.ellipse(5, 12.5, 1.6, 2.5, ramp(X.light(c, 0.1)), { group: 'petal2' });
-        S.ellipse(11, 12.5, 1.6, 2.5, ramp(X.light(c, 0.1)), { group: 'petal2' });
+        S.ellipse(8, 9, 2.6, 4, ramp(X.dark(c, 0.1)), { group: 'petalB' });
+        const t = P(S, 8, 15, [[8, 5], [6, 3], [3, 2]], X.mix(c, '#8a5a2b', 0.62), {});
+        S.ellipse(4.5, 12.5, 1.6, 2.6, ramp(X.light(c, 0.1)), { group: 'petal2' });
+        S.ellipse(11.5, 12.5, 1.6, 2.6, ramp(X.light(c, 0.1)), { group: 'petal2' });
         F(S, 8, t[0].top + 1, { small: true });
       },
       icon(S, tint) {
@@ -272,7 +272,7 @@
         S.stem(8, 15, 8, 11, '#3d8a2c');
         S.ellipse(4.5, 6, 2.4, 4.5, ramp(X.light(c, 0.15)), { group: 'petal' });
         S.ellipse(11.5, 6, 2.4, 4.5, ramp(X.light(c, 0.15)), { group: 'petal' });
-        const t = P(S, 8, 12, [[9, 6], [6, 3], [3, 2]], c, {});
+        const t = P(S, 8, 12, [[9, 6], [6, 3], [3, 2]], X.mix(c, '#8a5a2b', 0.62), {});
         F(S, 8, t[0].top + 1, { small: true });
       },
     },
@@ -292,8 +292,8 @@
           const a = (i / 10) * Math.PI * 2;
           S.ellipse(8 + Math.cos(a) * 5, 11 + Math.sin(a) * 4.5, 1.8, 1.8, ramp(X.light(c, 0.3)), { group: 'petal' });
         }
-        ball(S, 8, 11, 4.2, c);
-        F(S, 8, 10, { small: true });
+        const t = P(S, 8, 15, [[9, 5], [6, 3], [3, 2]], X.mix(c, '#8a5a2b', 0.55), {});
+        F(S, 8, t[0].top + 1, { small: true });
       },
       icon(S, tint) {
         const c = tint || '#4f7fe0';
@@ -301,8 +301,8 @@
           const a = (i / 10) * Math.PI * 2;
           S.ellipse(8 + Math.cos(a) * 5.2, 8 + Math.sin(a) * 5.2, 1.9, 1.9, ramp(X.light(c, 0.3)), { group: 'petal' });
         }
-        ball(S, 8, 8, 4.4, c);
-        F(S, 8, 7, { small: true });
+        const t = P(S, 8, 12, [[9, 5], [6, 3], [3, 2]], X.mix(c, '#8a5a2b', 0.55), {});
+        F(S, 8, t[0].top + 1, { small: true });
       },
     },
   });
@@ -312,15 +312,16 @@
     look: {
       color: '#e8384a', seed: '#d86a5a', kind: 'bush',
       mature(S) {
-        A.tuft(S, 8, 27, 8, L2, 6, 0.95);
+        // 낮게 깔린 잎 위에 큼직한 딸기똥
+        for (let i = 0; i < 6; i++) S.leaf(8 + (i - 2.5) * 1.2, 27, 6.5, Math.PI * (i < 3 ? 1.05 + i * 0.13 : -0.05 - (5 - i) * 0.13), 2.4, L2);
         const sh = (cx, by, k) => {
-          const t = P(S, cx, by, [[Math.round(7 * k), Math.round(3 * k) + 1], [Math.round(11 * k), Math.round(5 * k)], [Math.round(7 * k), 3]], '#ea3c4e', { tex: A.tex.seeds('#ffe27a', 2), tip: false, overlap: 1 });
-          cap(S, cx, t[2].top + 1, 6);
+          const t = P(S, cx, by, [[Math.round(8 * k), Math.round(3 * k) + 1], [Math.round(12 * k), Math.round(6 * k)], [Math.round(8 * k), Math.round(3 * k)]], '#ec3a4c', { tex: A.tex.seeds('#ffe27a', 2), tip: false, overlap: 1 });
+          cap(S, cx, t[2].top + 1, 6 * k);
           return t;
         };
-        sh(4, 22, 0.6);
-        const t = sh(9, 28, 1);
-        F(S, 9, t[1].top + 1, { small: true });
+        sh(13, 21, 0.55);
+        const t = sh(7, 28, 1);
+        F(S, 7, t[1].top + 1, { small: true });
       },
       icon(S) {
         const t = P(S, 8, 15, [[7, 3], [12, 6], [8, 3]], '#ea3c4e', { tex: A.tex.seeds('#ffe27a', 2), tip: false });
@@ -401,16 +402,17 @@
         A.tuft(S, 7, 28, 4 + p * 8, L2, 5, 0.8);
       },
       mature(S) {
-        S.add((x, y) => x === 12 && y >= 4 && y <= 28, ['#d89a55', '#a8692e', '#7a4a22', '#553014'], { group: 'wood' });
-        A.tuft(S, 7, 28, 12, L2, 6, 0.85);
+        S.add((x, y) => x === 13 && y >= 6 && y <= 28, ['#d89a55', '#a8692e', '#7a4a22', '#553014'], { group: 'wood' });
+        for (let i = 0; i < 4; i++) S.leaf(8, 27 - i * 4, 6, i % 2 ? -Math.PI * 0.15 : -Math.PI * 0.85, 2, L2);
         const tom = (x, by, k) => {
-          const t = P(S, x, by, [[Math.round(8 * k), Math.round(6 * k)], [Math.round(5 * k), 2]], '#ec4430', { tip: false });
-          cap(S, x, t[1].top + 1, 5);
+          const t = P(S, x, by, [[Math.round(9 * k), Math.round(7 * k)], [Math.round(5 * k), 2]], '#ee4632', { tip: false, pw: 2.1 });
+          cap(S, x, t[1].top + 1, 5 * k);
           return t;
         };
-        tom(4, 17, 0.8); tom(11, 21, 0.8);
-        const t = tom(7, 28, 1.05);
-        F(S, 7, t[0].top + 2, { small: true });
+        tom(11, 15, 0.75);
+        tom(4, 20, 0.7);
+        const t = tom(8, 28, 1.1);
+        F(S, 8, t[0].top + 3, { small: true });
       },
       icon(S) {
         const t = P(S, 8, 15, [[13, 10], [7, 2]], '#ec4430', { tip: false, pw: 2.1 });
@@ -482,10 +484,10 @@
       kind: 'trellis', color: '#b8d870', seed: '#9aa860', seedShape: 'big',
       mature(S) {
         A.trellis(S, 26);
-        A.vine(S, 28, 5, L2, 7);
-        const cone = (x, y, k) => P(S, x, y, [[Math.round(4 * k), 2], [Math.round(6 * k), Math.round(3 * k)], [Math.round(5 * k), 3], [3, 2]], '#c4e07a', { tex: A.tex.scales('#8aa848'), tip: false });
-        cone(4, 21, 1); cone(12, 15, 1);
-        const t = cone(5, 11, 0.9);
+        A.vine(S, 28, 5, LEAF, 7, 4);
+        const cone = (x, y, k) => P(S, x, y, [[Math.round(4 * k), 2], [Math.round(7 * k), Math.round(3 * k)], [Math.round(6 * k), 3], [3, 2]], '#d8f09a', { tex: A.tex.scales('#9ab85a'), tip: false });
+        cone(4, 23, 1); cone(12, 17, 1);
+        const t = cone(5, 12, 1);
         F(S, 5, t[1].top, { small: true, mouth: false });
       },
       icon(S) {
@@ -562,7 +564,7 @@
           const a = -Math.PI / 2 + (i / 5) * Math.PI * 2;
           S.leaf(8 + Math.cos(a) * 1.5, 11 + Math.sin(a) * 1.5, 6.5, a, 2, ramp(c), { group: 'petal' });
         }
-        const t = P(S, 8, 13, [[6, 4], [4, 2]], X.dark(c, 0.35), {});
+        const t = P(S, 8, 14, [[7, 4], [5, 3], [2, 2]], X.mix(c, '#7a4a22', 0.65), {});
         F(S, 8, t[0].top + 1, { small: true, mouth: false });
       },
       icon(S, tint) {
@@ -571,7 +573,7 @@
           const a = -Math.PI / 2 + (i / 5) * Math.PI * 2;
           S.leaf(8 + Math.cos(a) * 1.5, 8 + Math.sin(a) * 1.5, 7, a, 2.2, ramp(c), { group: 'petal' });
         }
-        const t = P(S, 8, 10, [[6, 4], [4, 2]], X.dark(c, 0.35), {});
+        const t = P(S, 8, 11, [[7, 4], [5, 3], [2, 2]], X.mix(c, '#7a4a22', 0.65), {});
         F(S, 8, t[0].top + 1, { small: true, mouth: false });
       },
     },
@@ -605,10 +607,10 @@
         S.stem(7, 29, 7, 1, '#4a9a34', 2);
         for (let i = 0; i < 4; i++) S.leaf(i % 2 ? 9 : 7, 26 - i * 6, 7, i % 2 ? -Math.PI * 0.12 : -Math.PI * 0.88, 1.6, L2);
         S.leaf(8, 3, 5, -Math.PI * 0.4, 1, ['#f2e088', '#d8c058', '#a8902a', '#7a6a1a']);
-        const t = P(S, 11, 22, [[5, 11], [3, 2]], '#f4cc36', { tex: A.tex.kernels('#fff0a0', '#c8961e'), tip: false, overlap: 0, pw: 2.2 });
-        S.leaf(10, 22, 7, -Math.PI * 0.42, 1.6, L2);
-        S.leaf(12, 22, 6, -Math.PI * 0.62, 1.4, L2);
-        F(S, 11, t[0].top + 3, { small: true, mouth: false });
+        const t = P(S, 11, 24, [[7, 13], [4, 2]], '#f6ce36', { tex: A.tex.kernels('#fff0a0', '#c8961e'), tip: false, overlap: 0, pw: 2.2 });
+        S.leaf(10, 24, 8, -Math.PI * 0.4, 1.8, L2);
+        S.leaf(12, 24, 7, -Math.PI * 0.62, 1.5, L2);
+        F(S, 11, t[0].top + 4, { small: true });
       },
       icon(S) {
         const t = P(S, 8, 14, [[7, 13], [4, 2]], '#f4cc36', { tex: A.tex.kernels('#fff0a0', '#c8961e'), tip: false, overlap: 0, pw: 2.2 });
