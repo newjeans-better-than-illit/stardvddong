@@ -129,7 +129,7 @@
         if (t >= dur) { Day._fadeAnim = null; Day.fade = target; cb && cb(); }
       };
     },
-    updateFade(dt) { if (Day._fadeAnim) Day._fadeAnim(dt); if (Day._ask > 0 && !Day.busy) Day._ask = Math.max(0, Day._ask - dt * 0); },
+    updateFade(dt) { if (Day._fadeAnim) Day._fadeAnim(dt); },
     // 실제 하루 처리 (화면이 까만 동안)
     process(o) {
       const G = SD.G;
@@ -211,7 +211,9 @@
     },
     // 잠에서 깨는 곳: 모듈이 'bedSpot' 훅으로 바꿀 수 있다 (집 업그레이드 등)
     bedSpot() {
-      return SD.Mods.reduce('bedSpot', { loc: 'FarmHouse', x: 10, y: 6 });
+      const d = SD.World.defs.get('FarmHouse');
+      const sp = (d && d.spawn) || { x: 6, y: 6 };
+      return SD.Mods.reduce('bedSpot', { loc: 'FarmHouse', x: sp.x, y: sp.y });
     },
   });
 })();

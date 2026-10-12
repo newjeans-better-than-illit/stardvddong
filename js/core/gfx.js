@@ -13,10 +13,26 @@
     c.height = Math.max(1, Math.ceil(h));
     return c;
   };
+  // 스프라이트 생성용 컨텍스트 (픽셀을 자주 읽으므로 willReadFrequently)
   X.ctx = function (c) {
-    const g = c.getContext('2d');
+    const g = c.getContext('2d', { willReadFrequently: true });
     g.imageSmoothingEnabled = false;
     return g;
+  };
+  // 완성된 스프라이트를 일반(가속) 캔버스로 옮긴다 — 매 프레임 그리기용
+  X.finalize = function (src) {
+    if (!src || !src.getContext) return src;
+    const c = document.createElement('canvas');
+    c.width = src.width; c.height = src.height;
+    const g = c.getContext('2d');
+    g.drawImage(src, 0, 0);
+    c._src = src;
+    return c;
+  };
+  // 원본 픽셀 읽기 (가속 캔버스면 만들 때 쓴 원본을 읽는다)
+  X.readPixels = function (c) {
+    const s = c._src || c;
+    return X.ctx(s).getImageData(0, 0, s.width, s.height);
   };
 
   // ───────────── 색 ─────────────
@@ -114,16 +130,13 @@
   };
 
   // ───────────── 픽셀 버퍼 ─────────────
-  X.pixels = function (c) {
-    const g = c.getContext('2d');
-    return g.getImageData(0, 0, c.width, c.height);
-  };
+  X.pixels = function (c) { return X.readPixels(c); };
 
   // 자동 외곽선: 불투명 픽셀 둘레의 빈 칸을 "이웃 채움색의 어두운 톤"으로 칠한다
   // opts.color 를 주면 단색, opts.diagonal 이면 대각선 이웃까지 포함
   X.outline = function (c, opts) {
     const o = opts || {};
-    const g = c.getContext('2d');
+    const g = X.ctx(c);
     const w = c.width, h = c.height;
     const img = g.getImageData(0, 0, w, h);
     const d = img.data;
@@ -221,8 +234,8 @@
   X.rotateNearest = function (src, angle, cx, cy, size) {
     const S = size || Math.ceil(Math.hypot(src.width, src.height) * 2) + 2;
     const c = X.canvas(S, S);
-    const g = c.getContext('2d');
-    const sd = src.getContext('2d').getImageData(0, 0, src.width, src.height).data;
+    const g = X.ctx(c);
+    const sd = X.readPixels(src).data;
     const img = g.createImageData(S, S);
     const d = img.data;
     const cos = Math.cos(-angle), sin = Math.sin(-angle);
@@ -254,6 +267,7 @@
     let v = cache.get(key);
     if (v === undefined) {
       v = make();
+      if (v && v.getContext && !v._noFinalize) v = X.finalize(v);
       cache.set(key, v);
     }
     return v;

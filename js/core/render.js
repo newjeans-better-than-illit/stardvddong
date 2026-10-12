@@ -52,7 +52,8 @@
     R.S = Math.max(1, Math.round(R.zoom * dpr));
     R.W = R.canvas.width; R.H = R.canvas.height;
     R.viewW = R.W / R.S; R.viewH = R.H / R.S;
-    const lw = Math.ceil(R.viewW / 2) + 2, lh = Math.ceil(R.viewH / 2) + 2;
+    // 조명 버퍼: 월드 1픽셀 = 1칸 (픽셀아트처럼 계단진 빛, 합성이 빠르다)
+    const lw = Math.ceil(R.viewW) + 2, lh = Math.ceil(R.viewH) + 2;
     if (R.light.width !== lw || R.light.height !== lh) { R.light.width = lw; R.light.height = lh; }
     SD.Mods.emit('resize', R);
   };
@@ -387,6 +388,8 @@
     if (near && !ls.some((l) => l.always)) return;
     const lc = R.lightCtx;
     const lw = R.light.width, lh = R.light.height;
+    // 빛 버퍼 원점은 카메라를 월드 픽셀로 내린 곳 (합성할 때 남은 소수만큼 밀어 준다)
+    const lox = Math.floor(R.camX), loy = Math.floor(R.camY);
     lc.setTransform(1, 0, 0, 1, 0, 0);
     lc.globalCompositeOperation = 'source-over';
     lc.fillStyle = X.hex(amb[0], amb[1], amb[2]);
@@ -397,7 +400,7 @@
       const a0 = (l.a == null ? 1 : l.a) * (l.flicker ? 1 - l.flicker + Math.sin(SD.Time.anim * 13 + l.x) * l.flicker * 0.5 + Math.random() * l.flicker * 0.5 : 1);
       const a = l.nightOnly ? a0 * night : a0;
       if (a <= 0.01) continue;
-      const x = (l.x - R.camX) / 2, y = (l.y - R.camY) / 2, r = (l.r || 48) / 2;
+      const x = l.x - lox, y = l.y - loy, r = l.r || 48;
       if (x < -r || y < -r || x > lw + r || y > lh + r) continue;
       const [cr, cg, cb] = X.rgb(l.color || '#ffd890');
       const grd = lc.createRadialGradient(x, y, 0, x, y, r);
@@ -412,11 +415,9 @@
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = 'multiply';
-    g.imageSmoothingEnabled = true;
-    const ox = (R.camX % 2 + 2) % 2;
-    void ox;
-    g.drawImage(R.light, 0, 0, lw, lh, 0, 0, lw * 2 * R.S, lh * 2 * R.S);
     g.imageSmoothingEnabled = false;
+    const dx = Math.round((lox - R.camX) * R.S), dy = Math.round((loy - R.camY) * R.S);
+    g.drawImage(R.light, 0, 0, lw, lh, dx, dy, lw * R.S, lh * R.S);
     g.restore();
   }
 

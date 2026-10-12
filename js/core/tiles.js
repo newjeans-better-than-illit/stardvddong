@@ -213,6 +213,25 @@
       if (land(1, 0)) { g.fillRect(px + 15, py + (land(0, -1) ? 4 : 0), 1, 16 - (land(0, -1) ? 4 : 0)); g.fillStyle = W[1]; g.fillRect(px + 14, py + (land(0, -1) ? 4 : 0), 1, 16 - (land(0, -1) ? 4 : 0)); }
       if (!land(0, -1) && land(-1, -1)) { g.fillStyle = D[2]; g.fillRect(px, py, 2, 2); }
       if (!land(0, -1) && land(1, -1)) { g.fillStyle = D[2]; g.fillRect(px + 14, py, 2, 2); }
+      // 둥근 모서리: 두 방향이 땅이면 땅이 물 쪽으로 둥글게 들어온다
+      const landCol = (dx, dy) => {
+        const id = T.at(dx, dy);
+        const gp = Tiles.pal(T.season).grass;
+        return id === 'grass' ? [gp[2], gp[4]] : [D[1], D[3]];
+      };
+      const corner = (cx, cy, sx, sy, col) => {
+        // (cx, cy): 모서리 픽셀, sx/sy: 안쪽 방향
+        const R = [[0, 0], [1, 0], [2, 0], [3, 0], [0, 1], [1, 1], [0, 2], [0, 3], [2, 1], [1, 2]];
+        for (const [a, b] of R) { g.fillStyle = col[0]; g.fillRect(px + cx + a * sx, py + cy + b * sy, 1, 1); }
+        g.fillStyle = W[0];
+        for (const [a, b] of [[4, 0], [3, 1], [2, 2], [1, 3], [0, 4]]) g.fillRect(px + cx + a * sx, py + cy + b * sy, 1, 1);
+        g.fillStyle = col[1];
+        for (const [a, b] of [[3, 0], [2, 1], [1, 2], [0, 3]]) g.fillRect(px + cx + a * sx, py + cy + b * sy, 1, 1);
+      };
+      if (land(0, 1) && land(-1, 0)) corner(0, 15, 1, -1, landCol(-1, 0));
+      if (land(0, 1) && land(1, 0)) corner(15, 15, -1, -1, landCol(1, 0));
+      if (land(0, -1) && land(-1, 0)) corner(0, 4, 1, 1, [D[2], D[3]]);
+      if (land(0, -1) && land(1, 0)) corner(15, 4, -1, 1, [D[2], D[3]]);
     },
     // 천천히 흐르는 반짝임
     anim(g, px, py, T, t) {
@@ -220,10 +239,10 @@
       const h = U.hash2(T.x, T.y, 9);
       const topCut = (() => { const d = Tiles.get(T.at(0, -1)); return d && d.water ? 0 : 7; })();
       for (let i = 0; i < 2; i++) {
-        const sp = 2.5 + ((h >> (i * 4)) % 5) * 0.4;
-        const ph = ((h >> (i * 3)) % 16) + t * sp;
+        const sp = 2.5 + ((h >>> (i * 4)) % 5) * 0.4;
+        const ph = ((h >>> (i * 3)) % 16) + t * sp;
         const x = Math.floor(ph % 18) - 2;
-        const y = topCut + 2 + ((h >> (i * 5)) % Math.max(1, 12 - topCut)) ;
+        const y = topCut + 2 + ((h >>> (i * 5)) % Math.max(1, 12 - topCut)) ;
         const tw = Math.sin(t * 2 + h + i) * 0.5 + 0.5;
         if (y >= 15) continue;
         g.fillStyle = tw > 0.5 ? W[0] : W[1];
@@ -239,19 +258,35 @@
       const R = T.season === 3 ? ROCK_W : ROCK;
       const isC = (dx, dy) => T.at(dx, dy) === 'cliff';
       const top = !isC(0, -1), bot = !isC(0, 1), left = !isC(-1, 0), right = !isC(1, 0);
-      // 바위 기둥 질감: 세로 줄이 아래 칸까지 이어지도록 x 로만 결정
-      for (let x = 0; x < 16; x++) {
-        const wx = T.x * 16 + x;
-        const h = U.hash2(wx, 0, 21);
-        const col = (h % 7 === 0) ? R[3] : (h % 5 === 0) ? R[0] : (h % 3 === 0) ? R[2] : R[1];
-        g.fillStyle = col;
-        g.fillRect(px + x, py, 1, 16);
-        // 가로 금
-        const ch = U.hash2(wx, T.y, 23);
-        if (ch % 9 === 0) { g.fillStyle = R[3]; g.fillRect(px + x, py + (ch >> 4) % 14 + 1, 2, 1); }
+      // 울퉁불퉁한 바위 덩어리 (월드 좌표 보로노이 → 칸 경계가 이어진다)
+      const wx0 = T.x * 16, wy0 = T.y * 16;
+      const pt = (cx, cy) => { const h = U.hash2(cx, cy, 31); return [cx * 7 + (h % 7), cy * 6 + ((h >>> 4) % 6)]; };
+      // 절벽 위에서 몇 칸째인지 (아래로 갈수록 어둡게)
+      let depth = 0;
+      while (depth < 4 && isC(0, -depth - 1)) depth++;
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const wx = wx0 + x, wy = wy0 + y;
+          const cx = Math.floor(wx / 7), cy = Math.floor(wy / 6);
+          let d1 = 1e9, d2 = 1e9, best = null;
+          for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+            const [qx, qy] = pt(cx + ox, cy + oy);
+            const d = (wx - qx) * (wx - qx) * 0.8 + (wy - qy) * (wy - qy) * 1.3;
+            if (d < d1) { d2 = d1; d1 = d; best = [qx, qy]; } else if (d < d2) d2 = d;
+          }
+          let tone;
+          const edge = Math.sqrt(d2) - Math.sqrt(d1);
+          if (edge < 1.1) tone = 4;
+          else {
+            const dx = wx - best[0], dy = wy - best[1];
+            tone = dy < -1.5 && dx < 1.5 ? 0 : dy > 1.5 || dx > 2.5 ? 2 : 1;
+            if (edge < 2.1 && dy > 0) tone = 3;
+          }
+          if (depth + y / 16 > 1.6 && tone < 3 && U.hash2(wx, wy, 5) % 3 === 0) tone++;
+          g.fillStyle = R[tone];
+          g.fillRect(px + x, py + y, 1, 1);
+        }
       }
-      // 아래쪽일수록 어둡게
-      g.fillStyle = 'rgba(40,20,10,0.10)'; g.fillRect(px, py + 8, 16, 8);
       if (bot) {
         g.fillStyle = R[3]; g.fillRect(px, py + 13, 16, 3);
         g.fillStyle = R[4]; g.fillRect(px, py + 15, 16, 1);
@@ -322,7 +357,7 @@
         for (const s of [sx, sx + 32, sx - 32]) if (s >= 0 && s < 16) { g.fillStyle = FLOOR[4]; g.fillRect(px + s, y, 1, 4); }
         // 나뭇결
         const k = U.hash2(T.x, wy, 9);
-        if (k % 3 === 0) { g.fillStyle = FLOOR[2]; g.fillRect(px + (k >> 3) % 12, y + 2, 3, 1); }
+        if (k % 3 === 0) { g.fillStyle = FLOOR[2]; g.fillRect(px + (k >>> 3) % 12, y + 2, 3, 1); }
       }
       if (T.at(0, -1) !== 'floor' && T.at(0, -1) !== 'mat') { g.fillStyle = 'rgba(30,15,5,0.35)'; g.fillRect(px, py, 16, 3); }
     },

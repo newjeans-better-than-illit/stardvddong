@@ -57,11 +57,27 @@
     },
     // 칸 중심 월드 좌표
     center(x, y) { return { x: x * TILE + 8, y: y * TILE + 8 }; },
+    // 이 칸에 오브젝트를 놓을 수 있는가 (기계·상자·허수아비 등 모듈용)
+    // opts: { allowDirt: 괭이흙 위 허용(작물 없을 때), allowWater, w, h }
+    canPlace(loc, x, y, opts) {
+      const o = opts || {};
+      for (let yy = y; yy < y + (o.h || 1); yy++) for (let xx = x; xx < x + (o.w || 1); xx++) {
+        if (!loc.inBounds(xx, yy)) return false;
+        if (loc.tileProp(xx, yy, 'solid') && !(o.allowWater && loc.isWater(xx, yy))) return false;
+        if (loc.objAt(xx, yy) || loc.largeAt(xx, yy)) return false;
+        const f = loc.featAt(xx, yy);
+        if (f && !(f.t === 'grass' || (o.allowDirt && f.t === 'dirt' && !f.crop))) return false;
+        for (const c of loc.chars) if (Math.floor(c.x / TILE) === xx && Math.floor((c.y - 2) / TILE) === yy) return false;
+        const p = SD.G && SD.G.player;
+        if (p && p.loc === loc.id && Math.floor(p.x / TILE) === xx && Math.floor((p.y - 3) / TILE) === yy) return false;
+      }
+      return SD.Mods.reduce('canPlace', true, loc, x, y, o);
+    },
   });
 
   // 작은 도우미: 스프라이트를 (밑동 x, 바닥 y) 기준으로 회전해 그린다
   function drawRot(g, img, bx, by, ox, oy, ang) {
-    if (!ang) { g.drawImage(img, Math.round(bx - ox), Math.round(by - oy)); return; }
+    if (!ang || Math.abs(ang) < 0.012) { g.drawImage(img, Math.round(bx - ox), Math.round(by - oy)); return; }
     g.save();
     g.translate(Math.round(bx), Math.round(by));
     g.rotate(ang);
@@ -189,6 +205,18 @@
   // ═════════════ 풀 (섬유 / 건초) ═════════════
   // { t:'grass', n: 1~4 포기, v }
   const TUFT_POS = [[4, 6], [12, 7], [5, 13], [12, 14]];
+  // 가만히 있는 풀 한 칸(최대 4포기)을 한 장으로 미리 합쳐 둔다 (그리기 횟수 ↓)
+  function grassPatch(season, n, v) {
+    return X.cached(`grassPatch:${season}:${n}:${v}`, () => {
+      const c = X.canvas(24, 24);
+      const g = X.ctx(c);
+      for (let i = 0; i < n; i++) {
+        const [ox, oy] = TUFT_POS[i];
+        g.drawImage(A.grassTuft(season, (v + i) % 6), 4 + ox - 5, 6 + oy + 1 - 13);
+      }
+      return c;
+    });
+  }
   types.define('grass', {
     layer: 'feature',
     passable: true,
@@ -196,10 +224,16 @@
       const { px, py } = tilePx(o);
       const n = o.n || 4;
       const s = V.season;
+      const shaking = o._shT != null && SD.Time.anim - o._shT < 2;
+      if (!shaking && !V.windy) {
+        // 한 장으로 (밑동 기준 정렬은 칸 아래쪽)
+        V.add(py + 7.1, (g) => g.drawImage(grassPatch(s, n, (o.v || 0) % 6), px - 4, py - 6));
+        return;
+      }
       for (let i = 0; i < n; i++) {
         const [ox, oy] = TUFT_POS[i];
         const v = (o.v || 0) + i;
-        const ang = Obj.shakeAngle(o, 18 + i * 2, 3.5) + Math.sin(V.t * 1.6 + o.x * 0.7 + i) * 0.04 * (V.windy ? 2.5 : 1);
+        const ang = SD.Obj.shakeAngle(o, 18 + i * 2, 3.5) + (V.windy ? Math.sin(V.t * 1.6 + o.x * 0.7 + i) * 0.1 : 0);
         V.add(py + oy + 0.1, (g) => drawRot(g, A.grassTuft(s, v % 6), px + ox, py + oy + 1, 5, 13, ang));
       }
     },
@@ -274,7 +308,7 @@
           alpha = o._fade;
         }
         g.globalAlpha = alpha;
-        drawRot(g, top, bx, py - 2, 24, 78, ang + Math.sin(V.t * 1.3 + o.x) * (V.windy ? 0.012 : 0.004));
+        drawRot(g, top, bx, py - 2, 24, 78, ang + (V.windy ? Math.sin(V.t * 1.3 + o.x) * 0.02 : 0));
         g.globalAlpha = 1;
       });
     },
@@ -503,6 +537,7 @@
   // ═════════════ 농가 · 출하함 ═════════════
   types.define('farmhouse', {
     layer: 'large', w: 9, h: 7, save: false,
+    // 스프라이트는 0~5행, 현관 데크는 6행 (지나갈 수 있음). 벽 3~5행, 문 (4, 5)
     blocks(o, tx, ty) {
       if (ty < o.y + 3 || ty > o.y + 5) return false;
       if (ty === o.y + 5 && tx === o.x + 4) return false; // 문
@@ -514,29 +549,29 @@
     draw(V, o) {
       const px = o.x * TILE, py = o.y * TILE;
       V.add((o.y + 6) * TILE - 1, (g) => {
-        g.drawImage(A.farmhouse(V.season), px, py + 16);
+        g.drawImage(A.farmhouse(V.season), px, py);
         // 밤에는 창문이 노랗게 빛난다
         const glow = SD.Render ? SD.Render.windowGlow() : 0;
         if (glow > 0) {
           g.globalAlpha = glow;
           for (const [x, y, w, h] of A.FARMHOUSE_WINDOWS) {
-            g.fillStyle = '#ffd77a'; g.fillRect(px + x, py + 16 + y, w, h);
-            g.fillStyle = '#fff2c0'; g.fillRect(px + x + 1, py + 16 + y + 1, w / 2 - 2, h / 2 - 2);
-            g.fillStyle = '#c8903a'; g.fillRect(px + x + w / 2 - 1, py + 16 + y, 2, h); g.fillRect(px + x, py + 16 + y + h / 2 - 1, w, 2);
+            g.fillStyle = '#ffd77a'; g.fillRect(px + x, py + y, w, h);
+            g.fillStyle = '#fff2c0'; g.fillRect(px + x + 1, py + y + 1, w / 2 - 2, h / 2 - 2);
+            g.fillStyle = '#c8903a'; g.fillRect(px + x + w / 2 - 1, py + y, 2, h); g.fillRect(px + x, py + y + h / 2 - 1, w, 2);
           }
           g.globalAlpha = 1;
         }
       });
       // 굴뚝 연기
-      if (Math.random() < 0.02 && SD.FX) SD.FX.smoke(px + A.FARMHOUSE_CHIMNEY[0] + 7, py + 16 + A.FARMHOUSE_CHIMNEY[1]);
+      if (Math.random() < 0.02 && SD.FX) SD.FX.smoke(px + A.FARMHOUSE_CHIMNEY[0] + 3, py + A.FARMHOUSE_CHIMNEY[1]);
     },
     shadow(o) { return [o.x * TILE + 72, (o.y + 6) * TILE - 2, 140, 8, 0.2]; },
     light(o, loc, add) {
       const glow = SD.Render ? SD.Render.windowGlow() : 0;
       if (glow <= 0) return;
       for (const [x, y, w, h] of A.FARMHOUSE_WINDOWS) {
-        add({ x: o.x * TILE + x + w / 2, y: o.y * TILE + 16 + y + h / 2, r: 28, color: '#ffc870', a: 0.9 * glow });
-        add({ x: o.x * TILE + x + w / 2, y: o.y * TILE + 16 + y + h + 22, r: 30, color: '#ffb850', a: 0.5 * glow });
+        add({ x: o.x * TILE + x + w / 2, y: o.y * TILE + y + h / 2, r: 28, color: '#ffc870', a: 0.9 * glow });
+        add({ x: o.x * TILE + x + w / 2, y: o.y * TILE + y + h + 26, r: 34, color: '#ffb850', a: 0.55 * glow });
       }
     },
   });

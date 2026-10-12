@@ -70,7 +70,7 @@
     }
     render() {
       const c = X.canvas(this.w, this.h);
-      const g = c.getContext('2d');
+      const g = X.ctx(c);
       const W = this.w;
       for (let y = 0; y < this.h; y++) {
         for (let x = 0; x < W; x++) {
@@ -322,11 +322,11 @@
     S.add((x, y) => y === top + 2 && x >= 3 && x <= 12, R, { group: 'wood', under: true });
     if (h > 18) S.add((x, y) => y === top + 9 && x >= 4 && x <= 11, R, { group: 'wood', under: true });
   };
-  A.vine = function (S, fromY, toY, ramp, seed) {
+  A.vine = function (S, fromY, toY, ramp, seed, step) {
     const R = ramp || LEAF;
     const r = U.mulberry32(seed || 5);
-    for (let y = fromY; y > toY; y -= 3) {
-      const side = (Math.floor((fromY - y) / 3) % 2) ? -1 : 1;
+    for (let y = fromY; y > toY; y -= step || 3) {
+      const side = (Math.floor((fromY - y) / (step || 3)) % 2) ? -1 : 1;
       S.leaf(side < 0 ? 7 : 8, y, 3.2 + r() * 1.5, side < 0 ? Math.PI * (1.05 + r() * 0.1) : -Math.PI * (0.05 + r() * 0.1), 1.6, R);
     }
   };

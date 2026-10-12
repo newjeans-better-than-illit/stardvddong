@@ -129,7 +129,7 @@
       if (Math.floor(t * 24 + f) % 2) { g.fillStyle = 'rgba(230,240,255,0.85)'; g.fillRect(Math.round(fx) + (Math.cos(a) > 0 ? -1 : 1), Math.round(fy) - 1, 1, 1); }
     }
     if (def.rare && Math.floor(t * 3 + h) % 5 === 0) {
-      const sx = px + 2 + (h % 12), sy = top + 6 + ((h >> 3) % 12);
+      const sx = px + 2 + (h % 12), sy = top + 6 + ((h >>> 3) % 12);
       g.fillStyle = '#ffffff';
       g.fillRect(sx, sy - 1, 1, 3); g.fillRect(sx - 1, sy, 3, 1);
     }
