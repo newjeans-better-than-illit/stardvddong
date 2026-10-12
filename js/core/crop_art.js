@@ -70,7 +70,7 @@
     }
     render() {
       const c = X.canvas(this.w, this.h);
-      const g = c.getContext('2d');
+      const g = X.ctx(c);
       const W = this.w;
       for (let y = 0; y < this.h; y++) {
         for (let x = 0; x < W; x++) {

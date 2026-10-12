@@ -503,6 +503,7 @@
   // ═════════════ 농가 · 출하함 ═════════════
   types.define('farmhouse', {
     layer: 'large', w: 9, h: 7, save: false,
+    // 스프라이트는 0~5행, 현관 데크는 6행 (지나갈 수 있음). 벽 3~5행, 문 (4, 5)
     blocks(o, tx, ty) {
       if (ty < o.y + 3 || ty > o.y + 5) return false;
       if (ty === o.y + 5 && tx === o.x + 4) return false; // 문
@@ -514,29 +515,29 @@
     draw(V, o) {
       const px = o.x * TILE, py = o.y * TILE;
       V.add((o.y + 6) * TILE - 1, (g) => {
-        g.drawImage(A.farmhouse(V.season), px, py + 16);
+        g.drawImage(A.farmhouse(V.season), px, py);
         // 밤에는 창문이 노랗게 빛난다
         const glow = SD.Render ? SD.Render.windowGlow() : 0;
         if (glow > 0) {
           g.globalAlpha = glow;
           for (const [x, y, w, h] of A.FARMHOUSE_WINDOWS) {
-            g.fillStyle = '#ffd77a'; g.fillRect(px + x, py + 16 + y, w, h);
-            g.fillStyle = '#fff2c0'; g.fillRect(px + x + 1, py + 16 + y + 1, w / 2 - 2, h / 2 - 2);
-            g.fillStyle = '#c8903a'; g.fillRect(px + x + w / 2 - 1, py + 16 + y, 2, h); g.fillRect(px + x, py + 16 + y + h / 2 - 1, w, 2);
+            g.fillStyle = '#ffd77a'; g.fillRect(px + x, py + y, w, h);
+            g.fillStyle = '#fff2c0'; g.fillRect(px + x + 1, py + y + 1, w / 2 - 2, h / 2 - 2);
+            g.fillStyle = '#c8903a'; g.fillRect(px + x + w / 2 - 1, py + y, 2, h); g.fillRect(px + x, py + y + h / 2 - 1, w, 2);
           }
           g.globalAlpha = 1;
         }
       });
       // 굴뚝 연기
-      if (Math.random() < 0.02 && SD.FX) SD.FX.smoke(px + A.FARMHOUSE_CHIMNEY[0] + 7, py + 16 + A.FARMHOUSE_CHIMNEY[1]);
+      if (Math.random() < 0.02 && SD.FX) SD.FX.smoke(px + A.FARMHOUSE_CHIMNEY[0] + 3, py + A.FARMHOUSE_CHIMNEY[1]);
     },
     shadow(o) { return [o.x * TILE + 72, (o.y + 6) * TILE - 2, 140, 8, 0.2]; },
     light(o, loc, add) {
       const glow = SD.Render ? SD.Render.windowGlow() : 0;
       if (glow <= 0) return;
       for (const [x, y, w, h] of A.FARMHOUSE_WINDOWS) {
-        add({ x: o.x * TILE + x + w / 2, y: o.y * TILE + 16 + y + h / 2, r: 28, color: '#ffc870', a: 0.9 * glow });
-        add({ x: o.x * TILE + x + w / 2, y: o.y * TILE + 16 + y + h + 22, r: 30, color: '#ffb850', a: 0.5 * glow });
+        add({ x: o.x * TILE + x + w / 2, y: o.y * TILE + y + h / 2, r: 28, color: '#ffc870', a: 0.9 * glow });
+        add({ x: o.x * TILE + x + w / 2, y: o.y * TILE + y + h + 26, r: 34, color: '#ffb850', a: 0.55 * glow });
       }
     },
   });
