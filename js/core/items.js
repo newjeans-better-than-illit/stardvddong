@@ -161,6 +161,12 @@
       if (!d || !d.icon) return Items.missingIcon();
       return SD.gfx.cached(`tool:${id}:${lvl || 0}`, () => d.icon(lvl || 0));
     },
+    // 손에 든 모습 (손잡이가 긴 24×24). def.held(lvl) 가 없으면 아이콘을 쓴다
+    heldIcon(id, lvl) {
+      const d = toolReg.get(id);
+      if (!d || !d.held) return null;
+      return SD.gfx.cached(`toolheld:${id}:${lvl || 0}`, () => d.held(lvl || 0));
+    },
     headColor(lvl) { return (SD.TOOL_LEVELS[lvl] || SD.TOOL_LEVELS[0]).head; },
     // 차지 단계별 범위: [가로, 세로] (앞쪽으로 뻗는 길이 기준) — 원작: 1, 3, 5, 3×3, 6×3
     chargeArea(level) {

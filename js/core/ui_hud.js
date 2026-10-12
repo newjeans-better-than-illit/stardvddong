@@ -15,7 +15,8 @@
     rain: [['..ccc..', '.cCCCc.', 'cCCCCCc', 'ddddddd', '.b.b.b.', 'b.b.b..', '.......'], { c: '#c9d3dc', C: '#eef3f7', d: '#8e9ba8', b: '#3f8fd0' }],
     storm: [['..ccc..', '.cCCCc.', 'cCCCCCc', 'ddddddd', '..yy...', '.yy....', '..y....'], { c: '#8a96a8', C: '#b8c4d4', d: '#5e6a7a', y: '#ffe23a' }],
     snow: [['..ccc..', '.cCCCc.', 'cCCCCCc', 'ddddddd', '.w..w..', 'www.www', '.w..w..'], { c: '#c9d3dc', C: '#eef3f7', d: '#8e9ba8', w: '#ffffff' }],
-    wind: [['.......', 'ggggg..', '.....g.', 'gggggg.', '......g', 'gggg.g.', '.......'], { g: '#e8f0f8' }],
+    wind: [['..gg...', '.g..g..', '....g..', 'gggg...', '.......', 'ggggg..', '.....g.'], { g: '#bfe0f0' }],
+    moon: [['..www..', '.wWW...', 'wWW....', 'wWW....', 'wWWw...', '.wWWww.', '..www..'], { w: '#e8e4c0', W: '#fffbe0' }],
     s0: [['..p.p..', '.pPpPp.', '..pYp..', '.pPpPp.', '..pgp..', '...g...', '..ggg..'], { p: '#f07ab8', P: '#ffb8dc', Y: '#ffe36a', g: '#5fae3e' }],
     s1: [['...y...', '.y.y.y.', '..yyy..', 'yyYYYyy', '..yyy..', '.y.y.y.', '...y...'], { y: '#ffb020', Y: '#ffe86a' }],
     s2: [['....o..', '...oo..', '..oOo..', '.oOoo..', '.oooo..', '..oo...', '.d.....'], { o: '#e8702a', O: '#f8a85a', d: '#8a4a1a' }],
@@ -34,26 +35,30 @@
     const w = 76 * u, h = 52 * u;
     const x = UI.W - w - 3 * u, y = 3 * u;
     UI.frame(g, x, y, w, h);
-    // 다이얼 (왼쪽 반원): 6시 → 새벽 2시
-    const dx = x + 5 * u, dy = y + 5 * u, dw = 22 * u, dh = 42 * u;
-    g.fillStyle = '#2a1608'; g.fillRect(dx, dy, dw, dh);
+    // 다이얼 (왼쪽 반원): 6시(위) → 정오(왼쪽) → 새벽 2시(아래)
+    const R0 = 20 * u;
+    const ccx = x + 26 * u, ccy = y + h / 2;
     const k = U.clamp((SD.Render.timeF() - 360) / (1560 - 360), 0, 1);
-    const sky = SD.Render.skyColor();
-    g.fillStyle = sky; g.fillRect(dx + u, dy + u, dw - 2 * u, dh - 2 * u);
-    // 해/달이 반원 궤도를 따라 돈다
-    const ang = Math.PI / 2 + k * Math.PI;
-    const cx = dx + dw - 2 * u, cy = dy + dh / 2;
-    const r = 16 * u;
-    const bx = cx + Math.cos(ang) * r * 0.9, by = cy - Math.sin(ang) * r * 1.1;
+    const half = (rad, color) => {
+      g.fillStyle = color;
+      for (let yy = -rad; yy < rad; yy += u) {
+        const hw = Math.floor(Math.sqrt(Math.max(0, rad * rad - (yy + u / 2) * (yy + u / 2))) / u) * u;
+        g.fillRect(ccx - hw, ccy + yy, hw, u);
+      }
+    };
+    half(R0 + u, '#4a200a');
+    half(R0, SD.Render.skyColor());
+    // 땅 (반원 아래쪽 띠)
+    const ang = -Math.PI / 2 - k * Math.PI;
+    // 해/달
     const night = SD.Render.nightAmount() > 0.5;
-    g.fillStyle = night ? '#f4f0d8' : '#ffd23a';
-    g.fillRect(Math.round(bx - 3 * u), Math.round(by - 3 * u), 6 * u, 6 * u);
-    g.fillStyle = night ? '#d8d4b8' : '#f2a020';
-    g.fillRect(Math.round(bx - 3 * u), Math.round(by + 2 * u), 6 * u, u);
+    const bx = ccx + Math.cos(ang) * R0 * 0.66, by = ccy + Math.sin(ang) * R0 * 0.66;
+    UI.img(g, icon(night ? 'moon' : 'sun'), bx - 3.5 * u, by - 3.5 * u, 1);
     // 바늘
     g.strokeStyle = '#4a200a'; g.lineWidth = u;
-    g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * r * 0.75, cy - Math.sin(ang) * r * 0.9); g.stroke();
-    g.fillStyle = '#c8301e'; g.fillRect(cx - u, cy - u, 2 * u, 2 * u);
+    g.beginPath(); g.moveTo(ccx, ccy); g.lineTo(ccx + Math.cos(ang) * (R0 - 2 * u), ccy + Math.sin(ang) * (R0 - 2 * u)); g.stroke();
+    g.fillStyle = '#c8301e'; g.fillRect(ccx - 2 * u, ccy - u, 2 * u, 2 * u);
+    g.fillStyle = '#4a200a'; g.fillRect(ccx - u, ccy - R0 - u, u, 2 * R0 + 2 * u);
     // 날짜
     const tx = x + 29 * u;
     UI.text(g, `${SD.SEASON_NAMES[G.season]} ${G.day}일 (${SD.Time.weekday()})`, tx + 22 * u, y + 6 * u, { align: 'center', size: 0.85 });

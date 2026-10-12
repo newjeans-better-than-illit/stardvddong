@@ -192,11 +192,17 @@
     }
   }
   // 팔: 어깨 → 손 (1~2px 굵기), 끝 2px 은 손
-  function arm(S, look, sx, sy, hx, hy, w, group) {
+  // 팔꿈치(ex, ey)를 주면 두 마디로 꺾인다
+  function arm(S, look, sx, sy, hx, hy, w, group, ex, ey) {
     const sh = ramp(look.shirt), sk = skinRamp(look.skin);
-    const n = Math.max(1, Math.round(Math.max(Math.abs(hx - sx), Math.abs(hy - sy))));
+    const segs = ex != null ? [[sx, sy, ex, ey], [ex, ey, hx, hy]] : [[sx, sy, hx, hy]];
     const pts = [];
-    for (let i = 0; i <= n; i++) pts.push([Math.round(sx + ((hx - sx) * i) / n), Math.round(sy + ((hy - sy) * i) / n), i]);
+    for (const [ax, ay, bx, by] of segs) {
+      const m = Math.max(1, Math.round(Math.max(Math.abs(bx - ax), Math.abs(by - ay))));
+      for (let i = pts.length ? 1 : 0; i <= m; i++) pts.push([Math.round(ax + ((bx - ax) * i) / m), Math.round(ay + ((by - ay) * i) / m)]);
+    }
+    const n = pts.length - 1;
+    pts.forEach((pt, i) => pt.push(i));
     const sleeve = new Set(), hand = new Set();
     for (const [x, y, i] of pts) {
       const set = i >= n - 1 ? hand : sleeve;
@@ -247,18 +253,16 @@
     } else {
       legs(S, look, dir, pose.legs || 0, by > 0 ? 1 : 0);
       torso(S, look, dir, by);
-      const armsUp = hands.L[1] < OY + 16 + by || hands.R[1] < OY + 16 + by;
-      // 앞모습에서 팔을 들면 머리 뒤로 (손만 머리 위로 보인다), 뒷모습은 머리 앞
-      if (!armsUp || true) {
-        arm(S, look, sh.L[0], sh.L[1], hands.L[0], hands.L[1], 1, 'armL');
-        arm(S, look, sh.R[0], sh.R[1], hands.R[0], hands.R[1], 1, 'armR');
-      }
+      // 팔을 들면 기본은 머리 뒤로 (손만 머리 위로 보인다). pose.armsFront 면 팔꿈치를 꺾어 앞에
+      const front = !!pose.armsFront;
+      const drawArms = () => {
+        arm(S, look, sh.L[0], sh.L[1], hands.L[0], hands.L[1], 1, 'armL', hands.L[2], hands.L[3]);
+        arm(S, look, sh.R[0], sh.R[1], hands.R[0], hands.R[1], 1, 'armR', hands.R[2], hands.R[3]);
+      };
+      if (!front) drawArms();
       head(S, look, dir, by);
       hat(S, look, dir, by);
-      if (false) {
-        arm(S, look, sh.L[0], sh.L[1], hands.L[0], hands.L[1], 1, 'armL');
-        arm(S, look, sh.R[0], sh.R[1], hands.R[0], hands.R[1], 1, 'armR');
-      }
+      if (front) drawArms();
     }
     let c = S.render();
     X.outline(c, { amount: 0.42 });
@@ -288,19 +292,27 @@
 
   // ───────────── 도구 회전 스프라이트 ─────────────
   // headAngle: 도구 머리가 향하는 화면 각도(도, 0=오른쪽, 90=아래). 22.5° 단위로 캐시
-  Farmer.toolSprite = function (icon, key, headAngle) {
+  // grip: 원본 아이콘에서 손으로 잡는 점 (기본 16×16 아이콘의 A.TOOL_GRIP)
+  // flip: 왼쪽을 볼 때는 회전 대신 좌우 반전한 그림을 쓴다 (도구 머리 모양이 뒤집히지 않게)
+  Farmer.toolSprite = function (icon, key, headAngle, grip, flip) {
     const step = 22.5;
     const a = Math.round((((headAngle % 360) + 360) % 360) / step) * step;
-    return X.cached(`toolrot:${key}:${a}`, () => {
+    const gp = grip || A.TOOL_GRIP;
+    const size = icon.width > 16 ? 52 : 36;
+    return X.cached(`toolrot:${key}:${a}:${flip ? 1 : 0}`, () => {
+      if (flip) {
+        const src = X.cached(`toolflip:${key}`, () => X.flipX(icon));
+        const rot = ((a + 135) * Math.PI) / 180;
+        return X.rotateNearest(src, rot, icon.width - 1 - gp.x + 0.5, gp.y + 0.5, size);
+      }
       const rot = ((a + 45) * Math.PI) / 180;
-      const img = X.rotateNearest(icon, rot, A.TOOL_GRIP.x + 0.5, A.TOOL_GRIP.y + 0.5, 36);
-      return img;
+      return X.rotateNearest(icon, rot, gp.x + 0.5, gp.y + 0.5, size);
     });
   };
-  // 잡는 점(손)에 도구를 그린다
-  Farmer.drawTool = function (g, icon, key, wx, wy, headAngle) {
-    const img = Farmer.toolSprite(icon, key, headAngle);
-    g.drawImage(img, Math.round(wx - 18), Math.round(wy - 18));
+  // 잡는 점(손)에 도구를 그린다 (headAngle: 화면 기준 머리 방향)
+  Farmer.drawTool = function (g, icon, key, wx, wy, headAngle, grip, flip) {
+    const img = Farmer.toolSprite(icon, key, headAngle, grip, flip);
+    g.drawImage(img, Math.round(wx - img.width / 2), Math.round(wy - img.height / 2));
   };
 
   // ───────────── 애니메이션 레지스트리 ─────────────
@@ -375,9 +387,9 @@
   const H = (x, y) => [OX + x, OY + y];
   // 도구 키프레임: 방향별 [손 위치, 도구 머리 각도, 몸 뒤?]
   const TOOL_KEYS = {
-    down: { raise: { hands: { L: H(6, 2), R: H(9, 2) }, grip: [7.5, 2], ang: -90, behind: true }, strike: { hands: { L: H(6, 21), R: H(9, 21) }, grip: [7.5, 21], ang: 90, behind: false } },
-    up: { raise: { hands: { L: H(6, 2), R: H(9, 2) }, grip: [7.5, 2], ang: 90, behind: false }, strike: { hands: { L: H(6, 11), R: H(9, 11) }, grip: [7.5, 11], ang: -90, behind: true } },
-    right: { raise: { hands: { F: H(4, 4), B: H(4, 4) }, grip: [4, 4], ang: -125, behind: true }, strike: { hands: { F: H(12, 19), B: H(11, 19) }, grip: [12, 19], ang: 55, behind: false } },
+    down: { raise: { hands: { L: H(6, 3), R: H(9, 3) }, grip: [7.5, 4], ang: -90, behind: true }, strike: { hands: { L: H(6, 22), R: H(9, 22) }, grip: [7.5, 21], ang: 90, behind: false } },
+    up: { raise: { hands: { L: H(6, 3), R: H(9, 3) }, grip: [7.5, 6], ang: -100, behind: true }, strike: { hands: { L: H(6, 13), R: H(9, 13) }, grip: [7.5, 14], ang: -80, behind: true } },
+    right: { raise: { hands: { F: H(4, 4), B: H(4, 4) }, grip: [4, 5], ang: -125, behind: true }, strike: { hands: { F: H(12, 19), B: H(11, 19) }, grip: [11, 19], ang: 50, behind: false } },
   };
   Farmer.TOOL_KEYS = TOOL_KEYS;
   function toolState(dir, k) {
@@ -393,10 +405,8 @@
     } else if (k < 0.7) {
       const u = U.easeIn((k - 0.375) / 0.325);
       phase = 'strike';
-      let a0 = K.raise.ang, a1 = K.strike.ang;
-      if (d === 'up') { a0 = 90; a1 = -90; }
-      ang = U.lerp(a0, a1 + (d === 'up' ? 0 : 0), u);
-      if (d === 'down') ang = U.lerp(-90, 90, u);
+      const a0 = K.raise.ang, a1 = K.strike.ang;
+      ang = U.lerp(a0, a1, u);
       const g0 = K.raise.grip, g1 = K.strike.grip;
       grip = [U.lerp(g0[0], g1[0], u), U.lerp(g0[1], g1[1], u)];
       hands = u < 0.5 ? K.raise.hands : K.strike.hands;
@@ -408,22 +418,28 @@
     return { phase, ang, grip, hands, behind };
   }
   Farmer.toolState = toolState;
-  function toolIconOf(a) {
+  // [아이콘, 캐시 키, 잡는 점] — 도구는 손잡이가 긴 '손에 든' 그림을 쓴다
+  function toolIconOf(a, noHeld) {
     const o = a.opts;
-    if (o.icon) return [o.icon, o.iconKey || 'icon'];
+    if (o.icon) return [o.icon, o.iconKey || 'icon', o.grip || A.TOOL_GRIP];
     const st = o.stack;
-    if (st) return [SD.Items.icon(st), (st.id || '') + ':' + (st.lvl || 0)];
-    return [null, null];
+    if (st) {
+      const def = SD.Items.get(st.id);
+      const held = !noHeld && def && def.tool ? SD.Tools.heldIcon(def.tool, st.lvl || 0) : null;
+      if (held) return [held, 'held:' + st.id + ':' + (st.lvl || 0), A.TOOL_GRIP_HELD];
+      return [SD.Items.icon(st), (st.id || '') + ':' + (st.lvl || 0), A.TOOL_GRIP];
+    }
+    return [null, null, null];
   }
   function drawToolAt(g, p, a, dir, ts, layer) {
     if (ts.behind !== (layer === 'behind')) return;
-    const [icon, key] = toolIconOf(a);
+    const [icon, key, grip] = toolIconOf(a);
     if (!icon) return;
     let ang = ts.ang;
     let gx = OX + ts.grip[0], gy = OY + ts.grip[1];
     if (dir === 'left') { ang = 180 - ang; gx = FW - gx; }
     const shake = a.charging ? (Math.floor(SD.Time.anim * 30) % 2 ? 1 : -1) * Math.min(1, a.chargeLevel || 0) : 0;
-    Farmer.drawTool(g, icon, key + (dir === 'left' ? ':L' : ''), p.x - 16 + gx + shake, p.y - 44 + gy, ang);
+    Farmer.drawTool(g, icon, key, p.x - 16 + gx + shake, p.y - 44 + gy, ang, grip, dir === 'left');
   }
   // 괭이·곡괭이·도끼: 머리 위로 들었다가(150ms) 내려찍기(130ms), 찍는 순간 이벤트, 총 400ms
   Farmer.define('tool', {
@@ -455,19 +471,20 @@
     events: [{ at: 0.45, fn(p, a) { if (a.opts.onHit) a.opts.onHit(p, a); } }],
   });
   function drawCan(g, p, k, a, dir) {
-    const [icon, key] = toolIconOf(a);
+    const [icon, key] = toolIconOf(a, true);
     if (!icon) return;
     const tilt = Math.min(1, k / 0.25);
     const d = dir === 'left' ? 'right' : dir;
     let gx, gy, ang;
-    if (d === 'right') { gx = OX + 11; gy = OY + 17; ang = U.lerp(-45, 10, tilt); }
-    else if (d === 'down') { gx = OX + 7; gy = OY + 20; ang = U.lerp(-45, -10, tilt); }
-    else { gx = OX + 7; gy = OY + 12; ang = U.lerp(-45, -80, tilt); }
+    // 물뿌리개 아이콘: 손잡이(위) 를 잡고, 기울이면 주둥이가 아래로
+    if (d === 'right') { gx = OX + 11; gy = OY + 18; ang = U.lerp(-45, 0, tilt); }
+    else if (d === 'down') { gx = OX + 10; gy = OY + 20; ang = U.lerp(-45, -15, tilt); }
+    else { gx = OX + 8; gy = OY + 13; ang = U.lerp(-45, -70, tilt); }
     if (dir === 'left') { gx = FW - gx; ang = 180 - ang; }
     const wx = p.x - 16 + gx, wy = p.y - 44 + gy;
     // 물뿌리개 아이콘은 손잡이가 위에 있으므로 중심 회전으로 그린다
-    const img = Farmer.toolSprite(icon, key + ':can' + (dir === 'left' ? 'L' : ''), ang);
-    g.drawImage(img, Math.round(wx - 18 + (dir === 'left' ? -4 : 4)), Math.round(wy - 18 - 2));
+    const img = Farmer.toolSprite(icon, key + ':can', ang, A.CAN_GRIP, dir === 'left');
+    g.drawImage(img, Math.round(wx - img.width / 2), Math.round(wy - img.height / 2));
     // 물줄기
     if (k > 0.2 && k < 0.95 && a.opts.water !== false) {
       const sx = wx + (d === 'right' ? (dir === 'left' ? -9 : 9) : d === 'down' ? 6 : 0);
@@ -504,7 +521,7 @@
     events: [{ at: 0.35, fn(p, a) { if (a.opts.onHit) a.opts.onHit(p, a); } }],
   });
   function drawSwing(g, p, k, a, dir) {
-    const [icon, key] = toolIconOf(a);
+    const [icon, key, grip] = toolIconOf(a);
     const cx = p.x, cy = p.y - (dir === 'up' ? 22 : dir === 'down' ? 20 : 22);
     const angD = dir === 'left' ? 180 - Farmer.swingAngle('right', k) : Farmer.swingAngle(dir, k);
     // 잔상 호
@@ -525,13 +542,14 @@
     if (icon) {
       const r = (angD * Math.PI) / 180;
       const hx = cx + Math.cos(r) * 4, hy = cy + Math.sin(r) * 4;
-      Farmer.drawTool(g, icon, key, hx, hy, angD);
+      if (dir === 'left') Farmer.drawTool(g, icon, key, hx, hy, angD, grip, true);
+      else Farmer.drawTool(g, icon, key, hx, hy, angD, grip);
     }
   }
   // 머리 위로 들어 올리기 (처음 얻은 물건/도구)
   Farmer.define('holdUp', {
     dur: 1.6,
-    pose() { return { hands: { L: H(6, 4), R: H(9, 4) }, dir: 'down', noBlink: true }; },
+    pose() { return { hands: { L: H(5, 2), R: H(10, 2) }, dir: 'down', noBlink: true }; },
     front(g, p, k, a) {
       const id = a.opts.item;
       if (!id) return;

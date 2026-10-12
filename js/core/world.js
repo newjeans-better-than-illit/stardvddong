@@ -268,9 +268,20 @@
         }
       }
     },
+    // 지역 지우기 (광산 층처럼 매번 새로 만드는 지역)
+    remove(id) {
+      delete World.locs[id];
+    },
+    // 정의는 그대로 두고 상태만 새로 (다시 populate)
+    reset(id) {
+      const def = defs.get(id);
+      if (!def) return null;
+      return World._create(def, true);
+    },
     serializeAll() {
       const out = {};
       for (const loc of World.all()) {
+        if (loc.def.noSave) continue;
         try { out[loc.id] = loc.serialize(); } catch (e) { console.error('[SD] 지역 저장 실패 ' + loc.id, e); }
       }
       return out;

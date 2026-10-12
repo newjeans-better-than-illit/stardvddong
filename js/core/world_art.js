@@ -264,21 +264,25 @@
     ['#e8b45a', '#c8823a', '#a05a26', '#7a401a'],
     ['#c8d4e0', '#98a8b8', '#78889a', '#566676'],
   ];
+  // 잡초: 넓적한 잎이 둥글게 퍼진 작은 포기 (풀과 확실히 다르게), 가끔 작은 꽃
   A.weedObj = function (v, season) {
     return X.cached(`obj:weed:${v}:${season}`, () => {
       const S = new Shp(16, 16);
       const R = WEED_COL[season];
+      const RD = R.map((c) => X.dark(c, 0.12));
       const r = U.mulberry32(91 + v * 13 + season);
-      const n = 6 + (v % 2);
+      const n = 5 + (v % 2);
       for (let i = 0; i < n; i++) {
         const t = i / (n - 1);
-        S.leaf(8 + (t - 0.5) * 6, 14, 6 + r() * 4, -Math.PI / 2 + (t - 0.5) * 2.2, 1.6, R);
+        const ang = -Math.PI / 2 + (t - 0.5) * 2.6;
+        S.leaf(8 + (t - 0.5) * 2, 14, 5 + r() * 2.2, ang, 2.1, i % 2 ? RD : R);
       }
+      S.leaf(8, 14, 6.5, -Math.PI / 2 + (r() - 0.5) * 0.4, 1.6, R);
       const c = X.outline(S.render());
       const g = X.ctx(c);
-      if (season === 0 && v % 2) { X.px(g, 6, 5, '#ffffff'); X.px(g, 11, 4, '#fff27a'); }
-      if (season === 1 && v % 2) { X.px(g, 9, 3, '#ffe36a'); }
-      if (season === 3) { X.px(g, 7, 4, '#ffffff', 3, 1); }
+      if (season === 0 && v % 2) { X.px(g, 8, 4, '#ffffff'); X.px(g, 7, 5, '#f8d8f0'); X.px(g, 9, 5, '#f8d8f0'); }
+      if (season === 1 && v % 2) { X.px(g, 8, 4, '#ffe36a'); X.px(g, 8, 5, '#e8a020'); }
+      if (season === 3) { X.px(g, 5, 7, '#ffffff', 2, 1); X.px(g, 9, 6, '#ffffff', 3, 1); }
       return c;
     });
   };

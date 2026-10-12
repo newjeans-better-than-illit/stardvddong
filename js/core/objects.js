@@ -57,6 +57,22 @@
     },
     // 칸 중심 월드 좌표
     center(x, y) { return { x: x * TILE + 8, y: y * TILE + 8 }; },
+    // 이 칸에 오브젝트를 놓을 수 있는가 (기계·상자·허수아비 등 모듈용)
+    // opts: { allowDirt: 괭이흙 위 허용(작물 없을 때), allowWater, w, h }
+    canPlace(loc, x, y, opts) {
+      const o = opts || {};
+      for (let yy = y; yy < y + (o.h || 1); yy++) for (let xx = x; xx < x + (o.w || 1); xx++) {
+        if (!loc.inBounds(xx, yy)) return false;
+        if (loc.tileProp(xx, yy, 'solid') && !(o.allowWater && loc.isWater(xx, yy))) return false;
+        if (loc.objAt(xx, yy) || loc.largeAt(xx, yy)) return false;
+        const f = loc.featAt(xx, yy);
+        if (f && !(f.t === 'grass' || (o.allowDirt && f.t === 'dirt' && !f.crop))) return false;
+        for (const c of loc.chars) if (Math.floor(c.x / TILE) === xx && Math.floor((c.y - 2) / TILE) === yy) return false;
+        const p = SD.G && SD.G.player;
+        if (p && p.loc === loc.id && Math.floor(p.x / TILE) === xx && Math.floor((p.y - 3) / TILE) === yy) return false;
+      }
+      return SD.Mods.reduce('canPlace', true, loc, x, y, o);
+    },
   });
 
   // 작은 도우미: 스프라이트를 (밑동 x, 바닥 y) 기준으로 회전해 그린다

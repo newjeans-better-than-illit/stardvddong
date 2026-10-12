@@ -442,6 +442,7 @@
     name: '괭이', skill: 'farming', energy: 2, charge: true, anim: 'tool',
     desc: '땅을 갈아 밭을 만든다. 업그레이드하면 꾹 눌러 넓게 갈 수 있다.',
     icon: (lvl) => SD.Art.toolIcon('hoe', lvl),
+    held: (lvl) => SD.Art.toolIcon('hoe', lvl, true),
     use(ctx, tdef) {
       if (ctx.lvl > 0 && ctx.pressed) { Player.startCharge(ctx, tdef); return; }
       swingTool(ctx, tdef, () => { spendTool(ctx, 2, 'farming', 0); tdef.release(ctx, [{ x: ctx.tx, y: ctx.ty }], 0, true); });
@@ -512,6 +513,7 @@
     name: '곡괭이', skill: 'mining', energy: 2, anim: 'tool',
     desc: '돌을 깨고, 간 흙을 다시 메운다.',
     icon: (lvl) => SD.Art.toolIcon('pick', lvl),
+    held: (lvl) => SD.Art.toolIcon('pick', lvl, true),
     use(ctx, tdef) {
       swingTool(ctx, tdef, () => {
         spendTool(ctx, 2, 'mining', 0);
@@ -529,6 +531,7 @@
     name: '도끼', skill: 'foraging', energy: 2, anim: 'tool',
     desc: '나무를 베고 나뭇가지와 그루터기를 치운다.',
     icon: (lvl) => SD.Art.toolIcon('axe', lvl),
+    held: (lvl) => SD.Art.toolIcon('axe', lvl, true),
     use(ctx, tdef) {
       swingTool(ctx, tdef, () => {
         spendTool(ctx, 2, 'foraging', 0);
@@ -542,6 +545,7 @@
     desc: '풀과 잡초를 벤다. 밀·아마란스 같은 똥은 낫으로 거둔다.',
     nameFor: () => '낫',
     icon: () => SD.Art.toolIcon('scythe', 0),
+    held: () => SD.Art.toolIcon('scythe', 0, true),
     use(ctx, tdef) {
       SD.Sound.play('swish');
       SD.Farmer.play(ctx.p, 'swing', { stack: ctx.stack, onHit: () => {
